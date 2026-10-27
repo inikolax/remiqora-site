@@ -252,6 +252,11 @@ ul.plain li:last-child { border-bottom: 1px solid var(--hairline); }
 .more { margin: 24px 0 0; }
 .more a { display: inline-flex; align-items: center; min-height: 44px; }
 
+/* languages */
+.languages > p { max-width: var(--measure); }
+.languages .pills { margin: 28px 0 44px; }
+.languages .note { max-width: var(--measure); margin-top: 28px; }
+
 /* FAQ: native <details>, so it opens without script and stays searchable */
 .faq__list { max-width: 860px; border-bottom: 1px solid var(--hairline); }
 .qa { border-top: 1px solid var(--hairline); }
