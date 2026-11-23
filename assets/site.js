@@ -257,3 +257,84 @@
     });
   });
 })();
+
+// The 0.7 page: tabs of the screenshot viewers, the full-size dialog, the video and the song map.
+(() => {
+  /* ---------- viewers: tabs above a window switch its screenshot ---------- */
+  document.querySelectorAll('.viewer[data-tabs]').forEach((viewer) => {
+    const tabs = [...viewer.querySelectorAll('[role="tab"]')];
+    const panels = tabs.map((t) => document.getElementById(t.getAttribute('aria-controls')));
+    const pick = (i, focus) => {
+      tabs.forEach((t, n) => { t.setAttribute('aria-selected', String(n === i)); t.tabIndex = n === i ? 0 : -1; panels[n].hidden = n !== i; });
+      if (focus) tabs[i].focus();
+    };
+    tabs.forEach((t, i) => {
+      t.addEventListener('click', () => pick(i));
+      t.addEventListener('keydown', (e) => {
+        const to = { ArrowRight: (i + 1) % tabs.length, ArrowLeft: (i + tabs.length - 1) % tabs.length, Home: 0, End: tabs.length - 1 }[e.key];
+        if (to === undefined) return;
+        e.preventDefault(); pick(to, true);
+      });
+    });
+    pick(0);
+  });
+
+  /* ---------- a screenshot at full size ---------- */
+  const box = document.getElementById('lightbox');
+  if (box && box.showModal) {
+    const img = box.querySelector('img');
+    document.querySelectorAll('.zoom').forEach((b) => b.addEventListener('click', () => {
+      const small = b.querySelector('img');
+      img.src = b.dataset.zoom; img.width = Number(b.dataset.w); img.height = Number(b.dataset.h); img.alt = small ? small.alt : '';
+      box.querySelector('.lightbox__scroll').scrollTop = 0;
+      box.showModal();
+    }));
+    box.addEventListener('click', (e) => { if (e.target === box) box.close(); });   // a click on the backdrop
+  }
+
+  /* ---------- the video: the YouTube player is loaded only after a press on play or on a chapter ---------- */
+  const player = document.getElementById('player');
+  if (player) {
+    const links = [...document.querySelectorAll('.chapter')];
+    const load = (start) => {
+      const f = document.createElement('iframe');
+      f.src = `https://www.youtube-nocookie.com/embed/${player.dataset.video}?autoplay=1&rel=0&hl=${player.dataset.lang}&start=${start}`;
+      f.title = player.dataset.title;
+      f.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
+      f.allowFullscreen = true;
+      player.replaceChildren(f);
+      links.forEach((a) => (Number(a.dataset.t) === start ? a.setAttribute('aria-current', 'true') : a.removeAttribute('aria-current')));
+    };
+    player.querySelector('.player__start').addEventListener('click', (e) => { e.preventDefault(); load(0); });
+    links.forEach((a) => a.addEventListener('click', (e) => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;   // a new tab stays a new tab
+      e.preventDefault(); load(Number(a.dataset.t));
+      player.scrollIntoView({ block: 'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    }));
+  }
+
+  /* ---------- section navigation: the link of the section on screen is marked, a line shows the scroll progress ---------- */
+  const map = document.getElementById('map');
+  if (map) {
+    const list = map.querySelector('ol');
+    const items = [...list.querySelectorAll('a')].map((a) => ({ a, el: document.querySelector(a.getAttribute('href')) })).filter((x) => x.el);
+    let last = -1, queued = false;
+    const update = () => {
+      queued = false;
+      map.style.setProperty('--p', String(Math.min(1, scrollY / Math.max(1, document.documentElement.scrollHeight - innerHeight))));
+      const line = map.offsetHeight + 24;   // the line under the map that "plays" the page
+      const tops = items.map((x) => x.el.getBoundingClientRect().top - line);
+      let i = -1;
+      tops.forEach((t, n) => { if (t <= 0) i = n; });
+      items.forEach((x, n) => (n === i ? x.a.setAttribute('aria-current', 'true') : x.a.removeAttribute('aria-current')));
+      if (i < 0) { last = -1; return; }
+      const li = items[i].a.parentElement;
+      if (i !== last && list.scrollWidth > list.clientWidth) list.scrollLeft = li.offsetLeft - (list.clientWidth - li.offsetWidth) / 2;
+      last = i;
+    };
+    const ask = () => { if (!queued) { queued = true; requestAnimationFrame(update); } };
+    addEventListener('scroll', ask, { passive: true });
+    addEventListener('resize', ask);
+    update();
+  }
+})();
